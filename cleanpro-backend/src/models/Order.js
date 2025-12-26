@@ -9,14 +9,18 @@ class Order {
     
     const [orders] = await pool.query(`
       SELECT o.*, 
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'id', oi.id,
-                 'type', oi.type,
-                 'quantity', oi.quantity,
-                 'price', oi.price
-               )
-             ) as items
+             CASE 
+               WHEN COUNT(oi.id) > 0 THEN 
+                 JSON_ARRAYAGG(
+                   JSON_OBJECT(
+                     'id', oi.id,
+                     'type', oi.type,
+                     'quantity', oi.quantity,
+                     'price', oi.price
+                   )
+                 )
+               ELSE JSON_ARRAY()
+             END as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       GROUP BY o.id
@@ -25,7 +29,7 @@ class Order {
 
     return orders.map(order => ({
       ...order,
-      items: JSON.parse(order.items)
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []
     }));
   }
 
@@ -37,14 +41,18 @@ class Order {
     
     const [orders] = await pool.query(`
       SELECT o.*, 
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'id', oi.id,
-                 'type', oi.type,
-                 'quantity', oi.quantity,
-                 'price', oi.price
-               )
-             ) as items
+             CASE 
+               WHEN COUNT(oi.id) > 0 THEN 
+                 JSON_ARRAYAGG(
+                   JSON_OBJECT(
+                     'id', oi.id,
+                     'type', oi.type,
+                     'quantity', oi.quantity,
+                     'price', oi.price
+                   )
+                 )
+               ELSE JSON_ARRAY()
+             END as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE o.id = ?
@@ -57,7 +65,7 @@ class Order {
 
     return {
       ...orders[0],
-      items: JSON.parse(orders[0].items)
+      items: typeof orders[0].items === 'string' ? JSON.parse(orders[0].items) : orders[0].items || []
     };
   }
 
@@ -166,14 +174,18 @@ class Order {
     
     const [orders] = await pool.query(`
       SELECT o.*, 
-             JSON_ARRAYAGG(
-               JSON_OBJECT(
-                 'id', oi.id,
-                 'type', oi.type,
-                 'quantity', oi.quantity,
-                 'price', oi.price
-               )
-             ) as items
+             CASE 
+               WHEN COUNT(oi.id) > 0 THEN 
+                 JSON_ARRAYAGG(
+                   JSON_OBJECT(
+                     'id', oi.id,
+                     'type', oi.type,
+                     'quantity', oi.quantity,
+                     'price', oi.price
+                   )
+                 )
+               ELSE JSON_ARRAY()
+             END as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE o.order_code LIKE ? 
@@ -185,7 +197,7 @@ class Order {
 
     return orders.map(order => ({
       ...order,
-      items: JSON.parse(order.items)
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []
     }));
   }
 

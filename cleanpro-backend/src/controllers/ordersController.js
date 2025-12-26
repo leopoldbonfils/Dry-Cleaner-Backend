@@ -1,56 +1,5 @@
 const Order = require('../models/Order');
-const { generateOrderCode, calculateTotal, validateOrderData, camelToSnake } = require('../utils/helpers');
-
-/**
- * Get all orders
- */
-const getAllOrders = async (req, res) => {
-  try {
-    const orders = await Order.findAll();
-    
-    res.json({
-      success: true,
-      count: orders.length,
-      data: orders
-    });
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch orders',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get single order by ID
- */
-const getOrderById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const order = await Order.findById(id);
-
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: order
-    });
-  } catch (error) {
-    console.error('Error fetching order:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch order',
-      error: error.message
-    });
-  }
-};
+const { generateOrderCode, calculateTotal, validateOrderData } = require('../utils/helpers');
 
 /**
  * Create new order
@@ -59,21 +8,22 @@ const createOrder = async (req, res) => {
   try {
     const orderData = req.body;
 
-    // Convert camelCase to snake_case for database
+    // ✅ Data arrives as snake_case from api.js interceptor
+    // So we use it directly without conversion
     const dbData = {
-      client_name: orderData.clientName,
-      client_phone: orderData.clientPhone,
+      client_name: orderData.client_name,      // ✅ Already snake_case
+      client_phone: orderData.client_phone,    // ✅ Already snake_case
       items: orderData.items,
-      payment_method: orderData.paymentMethod,
-      payment_status: orderData.paymentStatus,
-      total_amount: orderData.totalAmount || calculateTotal(orderData.items),
+      payment_method: orderData.payment_method,  // ✅ Already snake_case
+      payment_status: orderData.payment_status,  // ✅ Already snake_case
+      total_amount: orderData.total_amount || calculateTotal(orderData.items),
       order_code: generateOrderCode()
     };
 
-    // Validate data
+    // ✅ Validate using the snake_case data
     const validation = validateOrderData({
-      clientName: dbData.client_name,
-      clientPhone: dbData.client_phone,
+      clientName: dbData.client_name,     // Convert back for validator
+      clientPhone: dbData.client_phone,   // Convert back for validator
       items: dbData.items,
       paymentMethod: dbData.payment_method,
       paymentStatus: dbData.payment_status
@@ -113,13 +63,13 @@ const updateOrder = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    // Convert camelCase to snake_case
+    // ✅ Data already arrives as snake_case from api.js
     const dbUpdates = {};
     if (updates.status) dbUpdates.status = updates.status;
-    if (updates.paymentMethod) dbUpdates.payment_method = updates.paymentMethod;
-    if (updates.paymentStatus) dbUpdates.payment_status = updates.paymentStatus;
-    if (updates.clientName) dbUpdates.client_name = updates.clientName;
-    if (updates.clientPhone) dbUpdates.client_phone = updates.clientPhone;
+    if (updates.payment_method) dbUpdates.payment_method = updates.payment_method;
+    if (updates.payment_status) dbUpdates.payment_status = updates.payment_status;
+    if (updates.client_name) dbUpdates.client_name = updates.client_name;
+    if (updates.client_phone) dbUpdates.client_phone = updates.client_phone;
 
     if (Object.keys(dbUpdates).length === 0) {
       return res.status(400).json({
@@ -152,9 +102,52 @@ const updateOrder = async (req, res) => {
   }
 };
 
-/**
- * Delete order
- */
+// Export other functions unchanged
+const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.findAll();
+    
+    res.json({
+      success: true,
+      count: orders.length,
+      data: orders
+    });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch orders',
+      error: error.message
+    });
+  }
+};
+
+const getOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch order',
+      error: error.message
+    });
+  }
+};
+
 const deleteOrder = async (req, res) => {
   try {
     const { id } = req.params;
@@ -181,9 +174,6 @@ const deleteOrder = async (req, res) => {
   }
 };
 
-/**
- * Search orders
- */
 const searchOrders = async (req, res) => {
   try {
     const { query } = req.query;
@@ -212,9 +202,6 @@ const searchOrders = async (req, res) => {
   }
 };
 
-/**
- * Get statistics
- */
 const getStats = async (req, res) => {
   try {
     const stats = await Order.getStats();
