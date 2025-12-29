@@ -5,7 +5,11 @@ require('dotenv').config();
 
 const { initializeDatabase } = require('./src/config/database');
 const { initializeTables } = require('./src/database/initTables');
+const { createUsersTable } = require('./src/database/initUsers');
+const { testEmailConfig } = require('./src/services/emailService');
+
 const ordersRoutes = require('./src/routes/orders');
+const authRoutes = require('./src/routes/auth');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -22,6 +26,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);
 
 // Health check route
@@ -30,7 +35,8 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'CleanPro API is running',
     timestamp: new Date().toISOString(),
-    database: 'Connected'
+    database: 'Connected',
+    email: 'Configured'
   });
 });
 
@@ -42,6 +48,12 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        verifyOTP: 'POST /api/auth/verify-otp',
+        resendOTP: 'POST /api/auth/resend-otp'
+      },
       orders: '/api/orders',
       stats: '/api/orders/stats',
       search: '/api/orders/search?query=',
@@ -74,9 +86,9 @@ app.use((err, req, res, next) => {
  */
 const startServer = async () => {
   try {
-    console.log('\n╔════════════════════════════════════════════════════════╗');
+    console.log('\n╔══════════════════════════════════════════════════════╗');
     console.log('║        🧺 CLEANPRO BACKEND INITIALIZATION            ║');
-    console.log('╚════════════════════════════════════════════════════════╝\n');
+    console.log('╚══════════════════════════════════════════════════════╝\n');
 
     // Step 1: Initialize database
     console.log('📦 Step 1: Initializing database...');
@@ -85,21 +97,27 @@ const startServer = async () => {
     // Step 2: Initialize tables
     console.log('\n📋 Step 2: Creating tables...');
     await initializeTables();
+    await createUsersTable();
 
-    // Step 3: Start server
-    console.log('\n🚀 Step 3: Starting server...');
+    // Step 3: Test email service
+    console.log('\n📧 Step 3: Testing email service...');
+    await testEmailConfig();
+
+    // Step 4: Start server
+    console.log('\n🚀 Step 4: Starting server...');
     app.listen(PORT, () => {
-      console.log('\n╔════════════════════════════════════════════════════════╗');
+      console.log('\n╔══════════════════════════════════════════════════════╗');
       console.log('║          ✅ CLEANPRO BACKEND READY!                   ║');
-      console.log('╠════════════════════════════════════════════════════════╣');
-      console.log(`║   🌍 Server:      http://localhost:${PORT}              ║`);
+      console.log('╠══════════════════════════════════════════════════════╣');
+      console.log(`║   🌐 Server:      http://localhost:${PORT}              ║`);
       console.log(`║   📋 API Base:    http://localhost:${PORT}/api          ║`);
       console.log(`║   💚 Health:      http://localhost:${PORT}/api/health   ║`);
+      console.log(`║   🔐 Auth:        http://localhost:${PORT}/api/auth     ║`);
       console.log(`║   📦 Orders:      http://localhost:${PORT}/api/orders   ║`);
-      console.log('╠════════════════════════════════════════════════════════╣');
+      console.log('╠══════════════════════════════════════════════════════╣');
       console.log('║   Database and tables created automatically!          ║');
       console.log('║   Ready to accept requests...                         ║');
-      console.log('╚════════════════════════════════════════════════════════╝\n');
+      console.log('╚══════════════════════════════════════════════════════╝\n');
     });
 
   } catch (error) {
@@ -107,7 +125,8 @@ const startServer = async () => {
     console.error('\nPlease check:');
     console.error('  1. MySQL is running');
     console.error('  2. Database credentials in .env are correct');
-    console.error('  3. MySQL user has permission to create databases\n');
+    console.error('  3. Email credentials in .env are correct');
+    console.error('  4. MySQL user has permission to create databases\n');
     process.exit(1);
   }
 };

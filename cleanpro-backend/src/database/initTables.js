@@ -1,4 +1,5 @@
 const { getPool } = require('../config/database');
+const { createUsersTable } = require('./initUsers'); // ✅ Added import
 
 /**
  * Create Orders table
@@ -214,7 +215,8 @@ const initializeTables = async () => {
   try {
     console.log('🔧 Initializing database tables...');
     
-    // Create tables in order (orders first, then order_items due to foreign key)
+    // Create tables in order (users first, then orders, then order_items due to foreign keys)
+    await createUsersTable();  // ✅ Added this line
     await createOrdersTable();
     await createOrderItemsTable();
     
