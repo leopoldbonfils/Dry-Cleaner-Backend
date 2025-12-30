@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService'); // ✅ Import both
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 /**
  * Register new user (NO OTP SENT HERE)
@@ -378,12 +378,16 @@ const verifyResetOTP = async (req, res) => {
 
 /**
  * Reset Password (after OTP verification)
+ * ✅ FIXED: Now accepts both camelCase and snake_case
  */
 const resetPassword = async (req, res) => {
   try {
     console.log('📥 Reset Password Request:', req.body);
     
-    const { email, otp, newPassword } = req.body;
+    // ✅ Accept both camelCase and snake_case
+    const email = req.body.email;
+    const otp = req.body.otp;
+    const newPassword = req.body.newPassword || req.body.new_password;
 
     if (!email || !otp || !newPassword) {
       return res.status(400).json({
@@ -446,6 +450,6 @@ module.exports = {
   verifyOTP,
   resendOTP,
   forgotPassword,
-  verifyResetOTP, // ✅ Added
+  verifyResetOTP,
   resetPassword
 };
