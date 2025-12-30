@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { sendOTPEmail } = require('../services/emailService');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService'); // ✅ Import both
 
 /**
  * Register new user (NO OTP SENT HERE)
@@ -63,7 +63,6 @@ const register = async (req, res) => {
 
     console.log('✅ User created with ID:', user.id);
 
-    // ✅ NO OTP SENT - Just return success
     res.status(201).json({
       success: true,
       message: 'Registration successful! Please login to continue.',
@@ -120,20 +119,25 @@ const login = async (req, res) => {
 
     console.log('✅ Password verified for user:', user.id);
 
-    // ✅ ALWAYS SEND OTP (whether verified or not)
+    // Generate OTP
     const otp = await User.generateOTP(user.id);
-    console.log('🔐 OTP Generated:', otp); // For testing - remove in production
+    
+    // Development mode: show in console
+    if (process.env.NODE_ENV === 'development') {
+      console.log('\n╔════════════════════════════════════╗');
+      console.log('║   🔐 LOGIN OTP (DEV)              ║');
+      console.log('╠════════════════════════════════════╣');
+      console.log(`║  Email: ${email.padEnd(22)}║`);
+      console.log(`║  OTP:   ${otp}                      ║`);
+      console.log('╚════════════════════════════════════╝\n');
+    }
     
     // Send OTP email
     try {
       await sendOTPEmail(email, user.full_name, otp);
       console.log('✅ OTP email sent successfully to:', email);
     } catch (emailError) {
-      console.error('❌ Failed to send OTP email:', emailError.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send verification code. Please try again.'
-      });
+      console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
     }
 
     // Return response requiring OTP verification
@@ -187,7 +191,6 @@ const verifyOTP = async (req, res) => {
 
     console.log('✅ OTP verified successfully for user:', user.id);
 
-    // ✅ Grant access to dashboard
     res.json({
       success: true,
       message: 'Verification successful! Redirecting to dashboard...',
@@ -236,18 +239,14 @@ const resendOTP = async (req, res) => {
 
     // Generate new OTP
     const otp = await User.generateOTP(user.id);
-    console.log('🔐 New OTP Generated:', otp); // For testing - remove in production
+    console.log('🔐 New OTP Generated:', otp);
 
     // Send OTP email
     try {
       await sendOTPEmail(email, user.full_name, otp);
       console.log('✅ OTP resent successfully to:', email);
     } catch (emailError) {
-      console.error('❌ Failed to resend OTP email:', emailError.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send verification code. Please try again.'
-      });
+      console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
     }
 
     res.json({
@@ -264,9 +263,189 @@ const resendOTP = async (req, res) => {
   }
 };
 
+/**
+ * Forgot Password - Send reset OTP
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    console.log('📥 Forgot Password Request:', req.body);
+    
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
+      // Don't reveal if email exists (security)
+      return res.json({
+        success: true,
+        message: 'If this email is registered, you will receive a password reset code.'
+      });
+    }
+
+    // Generate OTP
+    const otp = await User.generateOTP(user.id);
+    
+    // Development mode: show in console
+    if (process.env.NODE_ENV === 'development') {
+      console.log('\n╔════════════════════════════════════╗');
+      console.log('║   🔐 PASSWORD RESET OTP (DEV)     ║');
+      console.log('╠════════════════════════════════════╣');
+      console.log(`║  Email: ${email.padEnd(22)}║`);
+      console.log(`║  OTP:   ${otp}                      ║`);
+      console.log('╚════════════════════════════════════╝\n');
+    }
+
+    // Send email
+    try {
+      await sendPasswordResetEmail(email, user.full_name, otp);
+      console.log('✅ Password reset email sent to:', email);
+    } catch (emailError) {
+      console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset code sent to your email',
+      email: email
+    });
+  } catch (error) {
+    console.error('❌ Error in forgotPassword:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to process request',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Verify Reset OTP (doesn't reset password yet)
+ */
+const verifyResetOTP = async (req, res) => {
+  try {
+    console.log('📥 Verify Reset OTP Request:', req.body);
+    
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and OTP are required'
+      });
+    }
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check OTP (don't clear it yet)
+    const isValidOTP = await User.checkOTP(email, otp);
+    if (!isValidOTP) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    console.log('✅ Reset OTP verified for user:', user.id);
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully. You can now reset your password.',
+      verified: true
+    });
+  } catch (error) {
+    console.error('❌ Error in verifyResetOTP:', error);
+    res.status(500).json({
+      success: false,
+      message: 'OTP verification failed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Reset Password (after OTP verification)
+ */
+const resetPassword = async (req, res) => {
+  try {
+    console.log('📥 Reset Password Request:', req.body);
+    
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, OTP, and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check OTP again
+    const isValidOTP = await User.checkOTP(email, otp);
+    if (!isValidOTP) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP. Please request a new reset code.'
+      });
+    }
+
+    // Update password
+    await User.updatePassword(user.id, newPassword);
+    
+    // Clear OTP
+    await User.clearOTP(user.id);
+
+    console.log('✅ Password reset successful for user:', user.id);
+
+    res.json({
+      success: true,
+      message: 'Password reset successful! You can now log in with your new password.'
+    });
+  } catch (error) {
+    console.error('❌ Error in resetPassword:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password',
+      error: error.message
+    });
+  }
+};
+
+// Export all functions
 module.exports = {
   register,
   login,
   verifyOTP,
-  resendOTP
+  resendOTP,
+  forgotPassword,
+  verifyResetOTP, // ✅ Added
+  resetPassword
 };

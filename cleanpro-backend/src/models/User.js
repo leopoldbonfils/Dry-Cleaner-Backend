@@ -79,7 +79,7 @@ class User {
   }
 
   /**
-   * Verify OTP
+   * Verify OTP (clears OTP and marks user as verified)
    */
   static async verifyOTP(email, otp) {
     const pool = getPool();
@@ -106,6 +106,23 @@ class User {
   }
 
   /**
+   * Check OTP without clearing it (for password reset)
+   */
+  static async checkOTP(email, otp) {
+    const pool = getPool();
+    
+    const [users] = await pool.query(
+      `SELECT * FROM users 
+       WHERE email = ? 
+       AND otp_code = ? 
+       AND otp_expires_at > NOW()`,
+      [email, otp]
+    );
+    
+    return users.length > 0;
+  }
+
+  /**
    * Clear OTP
    */
   static async clearOTP(userId) {
@@ -114,6 +131,24 @@ class User {
       'UPDATE users SET otp_code = NULL, otp_expires_at = NULL WHERE id = ?',
       [userId]
     );
+  }
+
+  /**
+   * Update password
+   */
+  static async updatePassword(userId, newPassword) {
+    const pool = getPool();
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+    
+    await pool.query(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [passwordHash, userId]
+    );
+    
+    return true;
   }
 }
 
