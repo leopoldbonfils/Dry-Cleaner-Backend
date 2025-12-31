@@ -48,6 +48,14 @@ const validateOrderData = (data) => {
     errors.push('Valid phone number is required (format: 078XXXXXXX)');
   }
 
+  // ✅ Email validation (optional but must be valid if provided)
+  if (data.clientEmail && data.clientEmail.trim() !== '') {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.clientEmail)) {
+      errors.push('Valid email address is required');
+    }
+  }
+
   if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
     errors.push('At least one item is required');
   }

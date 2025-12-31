@@ -1,5 +1,41 @@
 const { getPool } = require('../config/database');
-const { createUsersTable } = require('./initUsers'); // ✅ Added import
+const { createUsersTable } = require('./initUsers');
+
+/**
+ * Add client_email column to orders table if it doesn't exist
+ */
+const addClientEmailColumn = async () => {
+  const pool = getPool();
+  
+  try {
+    // Check if column already exists
+    const [columns] = await pool.query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = ? 
+      AND TABLE_NAME = 'orders' 
+      AND COLUMN_NAME = 'client_email'
+    `, [process.env.DB_NAME || 'cleanpro_db']);
+
+    if (columns.length > 0) {
+      console.log('ℹ️  client_email column already exists');
+      return true;
+    }
+
+    // Add column
+    await pool.query(`
+      ALTER TABLE orders 
+      ADD COLUMN client_email VARCHAR(255) AFTER client_phone,
+      ADD INDEX idx_client_email (client_email)
+    `);
+
+    console.log('✅ client_email column added to orders table');
+    return true;
+  } catch (error) {
+    console.error('❌ Error adding client_email column:', error.message);
+    throw error;
+  }
+};
 
 /**
  * Create Orders table
@@ -13,6 +49,7 @@ const createOrdersTable = async () => {
       order_code VARCHAR(50) UNIQUE NOT NULL,
       client_name VARCHAR(100) NOT NULL,
       client_phone VARCHAR(20) NOT NULL,
+      client_email VARCHAR(255),
       status ENUM('Pending', 'Washing', 'Ironing', 'Ready', 'Picked Up') DEFAULT 'Pending',
       payment_method ENUM('Cash', 'Mobile Money', 'Bank Card') NOT NULL,
       payment_status ENUM('Paid', 'Unpaid', 'Partial') DEFAULT 'Unpaid',
@@ -21,6 +58,7 @@ const createOrdersTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       INDEX idx_order_code (order_code),
       INDEX idx_client_phone (client_phone),
+      INDEX idx_client_email (client_email),
       INDEX idx_status (status),
       INDEX idx_payment_status (payment_status),
       INDEX idx_created_at (created_at)
@@ -96,6 +134,7 @@ const insertSampleData = async () => {
       order_code: 'DC001234567',
       client_name: 'Jean Marie Nkurunziza',
       client_phone: '0788123456',
+      client_email: 'jean.nkurunziza@example.com',
       status: 'Ready',
       payment_method: 'Mobile Money',
       payment_status: 'Paid',
@@ -111,6 +150,7 @@ const insertSampleData = async () => {
       order_code: 'DC001234568',
       client_name: 'Alice Uwase',
       client_phone: '0789234567',
+      client_email: 'alice.uwase@example.com',
       status: 'Washing',
       payment_method: 'Cash',
       payment_status: 'Unpaid',
@@ -126,6 +166,7 @@ const insertSampleData = async () => {
       order_code: 'DC001234569',
       client_name: 'Patrick Mugabo',
       client_phone: '0790345678',
+      client_email: 'patrick.mugabo@example.com',
       status: 'Ironing',
       payment_method: 'Mobile Money',
       payment_status: 'Paid',
@@ -141,6 +182,7 @@ const insertSampleData = async () => {
       order_code: 'DC001234570',
       client_name: 'Marie Claire Uwera',
       client_phone: '0791456789',
+      client_email: null,
       status: 'Pending',
       payment_method: 'Cash',
       payment_status: 'Unpaid',
@@ -156,6 +198,7 @@ const insertSampleData = async () => {
       order_code: 'DC001234571',
       client_name: 'Emmanuel Habimana',
       client_phone: '0792567890',
+      client_email: 'emmanuel.habimana@example.com',
       status: 'Picked Up',
       payment_method: 'Mobile Money',
       payment_status: 'Paid',
@@ -173,13 +216,14 @@ const insertSampleData = async () => {
     for (const order of sampleOrders) {
       // Insert order
       const [result] = await pool.query(
-        `INSERT INTO orders (order_code, client_name, client_phone, status, 
+        `INSERT INTO orders (order_code, client_name, client_phone, client_email, status, 
          payment_method, payment_status, total_amount, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           order.order_code,
           order.client_name,
           order.client_phone,
+          order.client_email,
           order.status,
           order.payment_method,
           order.payment_status,
@@ -216,9 +260,12 @@ const initializeTables = async () => {
     console.log('🔧 Initializing database tables...');
     
     // Create tables in order (users first, then orders, then order_items due to foreign keys)
-    await createUsersTable();  // ✅ Added this line
+    await createUsersTable();
     await createOrdersTable();
     await createOrderItemsTable();
+    
+    // Run migration to add client_email if table exists without it
+    await addClientEmailColumn();
     
     // Insert sample data if enabled
     if (process.env.INSERT_SAMPLE_DATA === 'true') {

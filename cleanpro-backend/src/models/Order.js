@@ -79,15 +79,16 @@ class Order {
     try {
       await connection.beginTransaction();
 
-      // Insert order
+      // Insert order (✅ include client_email)
       const [orderResult] = await connection.query(
-        `INSERT INTO orders (order_code, client_name, client_phone, status, 
+        `INSERT INTO orders (order_code, client_name, client_phone, client_email, status, 
          payment_method, payment_status, total_amount)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           orderData.order_code,
           orderData.client_name,
           orderData.client_phone,
+          orderData.client_email || null,
           orderData.status || 'Pending',
           orderData.payment_method,
           orderData.payment_status,
@@ -130,7 +131,7 @@ class Order {
   static async update(id, updates) {
     const pool = getPool();
     
-    const allowedFields = ['status', 'payment_method', 'payment_status', 'client_name', 'client_phone'];
+    const allowedFields = ['status', 'payment_method', 'payment_status', 'client_name', 'client_phone', 'client_email'];
     const updateFields = [];
     const updateValues = [];
 
@@ -191,9 +192,10 @@ class Order {
       WHERE o.order_code LIKE ? 
          OR o.client_name LIKE ? 
          OR o.client_phone LIKE ?
+         OR o.client_email LIKE ?
       GROUP BY o.id
       ORDER BY o.created_at DESC
-    `, [`%${query}%`, `%${query}%`, `%${query}%`]);
+    `, [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]);
 
     return orders.map(order => ({
       ...order,
