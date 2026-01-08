@@ -134,7 +134,7 @@ class User {
   }
 
   /**
-   * Update password
+   * Update password (by user ID)
    */
   static async updatePassword(userId, newPassword) {
     const pool = getPool();
@@ -146,6 +146,55 @@ class User {
     await pool.query(
       'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [passwordHash, userId]
+    );
+    
+    return true;
+  }
+
+  /**
+   * Update user profile
+   */
+  static async updateProfile(email, updates) {
+    const pool = getPool();
+    
+    const allowedFields = ['full_name', 'phone', 'business_name'];
+    const updateFields = [];
+    const updateValues = [];
+
+    Object.keys(updates).forEach(key => {
+      if (allowedFields.includes(key) && updates[key] !== undefined) {
+        updateFields.push(`${key} = ?`); // ✅ FIXED: Added backticks
+        updateValues.push(updates[key]);
+      }
+    });
+
+    if (updateFields.length === 0) {
+      throw new Error('No valid fields to update');
+    }
+
+    updateValues.push(email);
+
+    await pool.query(
+      `UPDATE users SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE email = ?`,
+      updateValues
+    );
+
+    return await this.findByEmail(email);
+  }
+
+  /**
+   * Change password (by email)
+   */
+  static async changePassword(email, newPassword) {
+    const pool = getPool();
+    
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+    
+    await pool.query(
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?',
+      [passwordHash, email]
     );
     
     return true;

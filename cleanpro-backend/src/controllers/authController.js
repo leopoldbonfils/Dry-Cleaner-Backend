@@ -199,7 +199,9 @@ const verifyOTP = async (req, res) => {
         email: user.email,
         fullName: user.full_name,
         businessName: user.business_name,
-        isVerified: true
+        phone: user.phone,
+        isVerified: true,
+        createdAt: user.created_at
       }
     });
   } catch (error) {
@@ -378,13 +380,12 @@ const verifyResetOTP = async (req, res) => {
 
 /**
  * Reset Password (after OTP verification)
- * ✅ FIXED: Now accepts both camelCase and snake_case
  */
 const resetPassword = async (req, res) => {
   try {
     console.log('📥 Reset Password Request:', req.body);
     
-    // ✅ Accept both camelCase and snake_case
+    // Accept both camelCase and snake_case
     const email = req.body.email;
     const otp = req.body.otp;
     const newPassword = req.body.newPassword || req.body.new_password;
@@ -443,6 +444,163 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Get user profile
+ */
+const getProfile = async (req, res) => {
+  try {
+    const { email } = req.body; // Or get from JWT token in production
+    
+    const user = await User.findByEmail(email);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        userId: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        businessName: user.business_name,
+        isVerified: user.is_verified,
+        createdAt: user.created_at
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in getProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update user profile
+ */
+const updateProfile = async (req, res) => {
+  try {
+    console.log('📝 Update Profile Request:', req.body);
+    
+    const { email, full_name, phone, business_name } = req.body;
+
+    // Validation
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+
+    if (!full_name || full_name.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'Full name is required'
+      });
+    }
+
+    // Update profile
+    const updatedUser = await User.updateProfile(email, {
+      full_name,
+      phone,
+      business_name
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        userId: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        businessName: updatedUser.business_name,
+        isVerified: updatedUser.is_verified
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in updateProfile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Change password
+ */
+const changePassword = async (req, res) => {
+  try {
+    console.log('🔒 Change Password Request');
+    
+    const { email, current_password, new_password } = req.body;
+
+    // Validation
+    if (!email || !current_password || !new_password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, current password, and new password are required'
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Find user
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isValidPassword = await User.verifyPassword(current_password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Update password
+    await User.changePassword(email, new_password);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error in changePassword:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message
+    });
+  }
+};
+
 // Export all functions
 module.exports = {
   register,
@@ -451,5 +609,8 @@ module.exports = {
   resendOTP,
   forgotPassword,
   verifyResetOTP,
-  resetPassword
+  resetPassword,
+  getProfile,      // ✅ Added
+  updateProfile,   // ✅ Added
+  changePassword   // ✅ Added
 };

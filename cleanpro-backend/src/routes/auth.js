@@ -17,10 +17,19 @@ router.post('/resend-otp', authController.resendOTP);
 // POST /api/auth/forgot-password
 router.post('/forgot-password', authController.forgotPassword);
 
-// POST /api/auth/verify-reset-otp (NEW)
+// POST /api/auth/verify-reset-otp
 router.post('/verify-reset-otp', authController.verifyResetOTP);
 
 // POST /api/auth/reset-password
 router.post('/reset-password', authController.resetPassword);
+
+// GET /api/auth/profile (NEW)
+router.get('/profile', authController.getProfile);
+
+// PUT /api/auth/profile (NEW)
+router.put('/profile', authController.updateProfile);
+
+// PUT /api/auth/change-password (NEW)
+router.put('/change-password', authController.changePassword);
 
 module.exports = router;
