@@ -104,155 +104,6 @@ const createOrderItemsTable = async () => {
 };
 
 /**
- * Check if sample data exists
- */
-const hasSampleData = async () => {
-  const pool = getPool();
-  
-  try {
-    const [rows] = await pool.query('SELECT COUNT(*) as count FROM orders');
-    return rows[0].count > 0;
-  } catch (error) {
-    return false;
-  }
-};
-
-/**
- * Insert sample data for testing
- */
-const insertSampleData = async () => {
-  const pool = getPool();
-  
-  // Check if data already exists
-  if (await hasSampleData()) {
-    console.log('ℹ️  Sample data already exists, skipping...');
-    return true;
-  }
-
-  const sampleOrders = [
-    {
-      order_code: 'DC001234567',
-      client_name: 'Jean Marie Nkurunziza',
-      client_phone: '0788123456',
-      client_email: 'jean.nkurunziza@example.com',
-      status: 'Ready',
-      payment_method: 'Mobile Money',
-      payment_status: 'Paid',
-      total_amount: 8500,
-      created_at: '2024-12-22 09:00:00',
-      updated_at: '2024-12-23 14:30:00',
-      items: [
-        { type: 'Shirt', quantity: 3, price: 1500 },
-        { type: 'Trousers', quantity: 2, price: 2000 }
-      ]
-    },
-    {
-      order_code: 'DC001234568',
-      client_name: 'Alice Uwase',
-      client_phone: '0789234567',
-      client_email: 'alice.uwase@example.com',
-      status: 'Washing',
-      payment_method: 'Cash',
-      payment_status: 'Unpaid',
-      total_amount: 10000,
-      created_at: '2024-12-23 10:30:00',
-      updated_at: '2024-12-23 10:30:00',
-      items: [
-        { type: 'Dress', quantity: 2, price: 3000 },
-        { type: 'Coat', quantity: 1, price: 4000 }
-      ]
-    },
-    {
-      order_code: 'DC001234569',
-      client_name: 'Patrick Mugabo',
-      client_phone: '0790345678',
-      client_email: 'patrick.mugabo@example.com',
-      status: 'Ironing',
-      payment_method: 'Mobile Money',
-      payment_status: 'Paid',
-      total_amount: 11000,
-      created_at: '2024-12-23 08:00:00',
-      updated_at: '2024-12-23 13:00:00',
-      items: [
-        { type: 'Suit', quantity: 1, price: 5000 },
-        { type: 'Shirt', quantity: 4, price: 1500 }
-      ]
-    },
-    {
-      order_code: 'DC001234570',
-      client_name: 'Marie Claire Uwera',
-      client_phone: '0791456789',
-      client_email: null,
-      status: 'Pending',
-      payment_method: 'Cash',
-      payment_status: 'Unpaid',
-      total_amount: 8000,
-      created_at: '2024-12-23 15:00:00',
-      updated_at: '2024-12-23 15:00:00',
-      items: [
-        { type: 'Dress', quantity: 1, price: 3000 },
-        { type: 'Sweater', quantity: 2, price: 2500 }
-      ]
-    },
-    {
-      order_code: 'DC001234571',
-      client_name: 'Emmanuel Habimana',
-      client_phone: '0792567890',
-      client_email: 'emmanuel.habimana@example.com',
-      status: 'Picked Up',
-      payment_method: 'Mobile Money',
-      payment_status: 'Paid',
-      total_amount: 12000,
-      created_at: '2024-12-21 11:00:00',
-      updated_at: '2024-12-22 16:00:00',
-      items: [
-        { type: 'Blanket', quantity: 1, price: 5000 },
-        { type: 'Bed Sheet', quantity: 2, price: 3500 }
-      ]
-    }
-  ];
-
-  try {
-    for (const order of sampleOrders) {
-      // Insert order
-      const [result] = await pool.query(
-        `INSERT INTO orders (order_code, client_name, client_phone, client_email, status, 
-         payment_method, payment_status, total_amount, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          order.order_code,
-          order.client_name,
-          order.client_phone,
-          order.client_email,
-          order.status,
-          order.payment_method,
-          order.payment_status,
-          order.total_amount,
-          order.created_at,
-          order.updated_at
-        ]
-      );
-
-      const orderId = result.insertId;
-
-      // Insert order items
-      for (const item of order.items) {
-        await pool.query(
-          'INSERT INTO order_items (order_id, type, quantity, price) VALUES (?, ?, ?, ?)',
-          [orderId, item.type, item.quantity, item.price]
-        );
-      }
-    }
-
-    console.log('✅ Sample data inserted successfully');
-    return true;
-  } catch (error) {
-    console.error('❌ Error inserting sample data:', error.message);
-    throw error;
-  }
-};
-
-/**
  * Initialize all tables
  */
 const initializeTables = async () => {
@@ -267,12 +118,8 @@ const initializeTables = async () => {
     // Run migration to add client_email if table exists without it
     await addClientEmailColumn();
     
-    // Insert sample data if enabled
-    if (process.env.INSERT_SAMPLE_DATA === 'true') {
-      await insertSampleData();
-    }
-    
     console.log('✅ All tables initialized successfully');
+    console.log('ℹ️  Database is empty and ready for your first order!');
     return true;
   } catch (error) {
     console.error('❌ Table initialization failed:', error.message);
@@ -283,6 +130,5 @@ const initializeTables = async () => {
 module.exports = {
   initializeTables,
   createOrdersTable,
-  createOrderItemsTable,
-  insertSampleData
+  createOrderItemsTable
 };
