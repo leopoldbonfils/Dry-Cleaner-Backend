@@ -1,10 +1,8 @@
 app {
   name = "dry-cleaner-backend"
   
-  env = {
-    NODE_ENV = "production"
-  }
-
+  env = {}
+  
   port = 5000
 
   compute {
