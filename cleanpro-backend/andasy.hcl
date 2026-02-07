@@ -1,12 +1,10 @@
-app_name = "dry-cleaner-backend"
-
 app {
-  # Basic configuration
+  name = "dry-cleaner-backend"
+  
   env = {
     NODE_ENV = "production"
   }
 
-  # Port configuration
   port = 5000
 
   compute {
@@ -15,7 +13,6 @@ app {
     cpu_kind = "shared"
   }
 
-  # Process configuration
   process {
     name = "dry-cleaner-backend"
   }
