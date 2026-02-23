@@ -9,9 +9,9 @@ const { createUsersTable } = require('./src/database/initUsers');
 const { testEmailConfig } = require('./src/services/emailService');
 
 const ordersRoutes = require('./src/routes/orders');
-const authRoutes = require('./src/routes/auth');
+const authRoutes   = require('./src/routes/auth');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -19,91 +19,82 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Request logging middleware
-app.use((req, res, next) => {
+// Request logging
+app.use((req, _res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth',   authRoutes);
 app.use('/api/orders', ordersRoutes);
 
-// Health check route
-app.get('/api/health', (req, res) => {
+// Health check
+app.get('/api/health', (_req, res) => {
   res.json({
-    success: true,
-    message: 'CleanPro API is running',
+    success:   true,
+    message:   'CleanPro API is running',
     timestamp: new Date().toISOString(),
-    database: 'Connected',
-    email: 'Configured'
+    database:  'Connected',
+    email:     'Configured'
   });
 });
 
-// Root route
-app.get('/', (req, res) => {
+// Root
+app.get('/', (_req, res) => {
   res.json({
-    success: true,
-    message: 'Welcome to CleanPro API',
-    version: '1.0.0',
+    success:  true,
+    message:  'Welcome to CleanPro API',
+    version:  '1.0.0',
     endpoints: {
       health: '/api/health',
       auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
+        register:  'POST /api/auth/register',
+        login:     'POST /api/auth/login',
         verifyOTP: 'POST /api/auth/verify-otp',
         resendOTP: 'POST /api/auth/resend-otp'
       },
-      orders: '/api/orders',
-      stats: '/api/orders/stats',
-      search: '/api/orders/search?query=',
+      orders:        '/api/orders',
+      stats:         '/api/orders/stats',
+      search:        '/api/orders/search?query=',
       documentation: 'See README.md for full API documentation'
     }
   });
 });
 
-// 404 handler
+// 404
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-    path: req.path
-  });
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
+// Global error handler
+app.use((err, _req, res, _next) => {
   console.error('Server Error:', err);
   res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    error:   process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 });
 
-/**
- * Initialize and start server
- */
+// ─────────────────────────────────────────────────────────────────────────────
 const startServer = async () => {
   try {
     console.log('\n╔══════════════════════════════════════════════════════╗');
     console.log('║        🧺 CLEANPRO BACKEND INITIALIZATION            ║');
     console.log('╚══════════════════════════════════════════════════════╝\n');
 
-    // Step 1: Initialize database
     console.log('📦 Step 1: Initializing database...');
     await initializeDatabase();
 
-    // Step 2: Initialize tables
     console.log('\n📋 Step 2: Creating tables...');
-    await initializeTables();
+    await initializeTables();   // calls createUsersTable() internally
+    // Kept for safety; initializeTables already calls createUsersTable
     await createUsersTable();
 
-    // Step 3: Test email service
     console.log('\n📧 Step 3: Testing email service...');
     await testEmailConfig();
 
-    // Step 4: Start server
     console.log('\n🚀 Step 4: Starting server...');
     app.listen(PORT, () => {
       console.log('\n╔══════════════════════════════════════════════════════╗');
@@ -123,15 +114,14 @@ const startServer = async () => {
   } catch (error) {
     console.error('\n❌ Failed to start server:', error.message);
     console.error('\nPlease check:');
-    console.error('  1. MySQL is running');
-    console.error('  2. Database credentials in .env are correct');
-    console.error('  3. Email credentials in .env are correct');
-    console.error('  4. MySQL user has permission to create databases\n');
+    console.error('  1. PostgreSQL is running');
+    console.error('  2. DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME in .env are correct');
+    console.error('  3. The PostgreSQL user has CREATE DATABASE permission (or pre-create the DB)');
+    console.error('  4. Email credentials in .env are correct\n');
     process.exit(1);
   }
 };
 
-// Start the server
 startServer();
 
 module.exports = app;

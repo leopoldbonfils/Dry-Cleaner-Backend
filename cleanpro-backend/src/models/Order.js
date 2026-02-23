@@ -1,89 +1,94 @@
 const { getPool } = require('../config/database');
 
+/**
+ * Order model – PostgreSQL version
+ *
+ * Driver differences from mysql2 → pg:
+ *  ─ pool.query() returns { rows, rowCount }, NOT [rows, fields]
+ *  ─ Positional placeholders: $1, $2, … instead of ?
+ *  ─ pool.getConnection() → pool.connect()  (returns a Client object)
+ *  ─ client.beginTransaction() → client.query('BEGIN')
+ *  ─ INSERT … RETURNING id  replaces result.insertId
+ *  ─ result.affectedRows → result.rowCount
+ *  ─ Bulk INSERT VALUES (…),(…) built manually (pg has no mysql2 nested-array shorthand)
+ *  ─ JSON_ARRAYAGG / JSON_OBJECT / JSON_ARRAY → JSON_AGG / JSON_BUILD_OBJECT / FILTER WHERE
+ *  ─ CURDATE()        → CURRENT_DATE
+ *  ─ DATE(col)        → col::date
+ */
 class Order {
-  /**
-   * Get all orders with their items
-   */
+  // ─── shared JSON aggregation fragment ───────────────────────────────────────
+  // Produces a JSON array of items, or [] when the order has no items.
+  static get #itemsAgg() {
+    return `
+      COALESCE(
+        JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'id',       oi.id,
+            'type',     oi.type,
+            'quantity', oi.quantity,
+            'price',    oi.price
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL),
+        '[]'::json
+      ) AS items
+    `;
+  }
+
+  static #parseItems(order) {
+    return {
+      ...order,
+      items: typeof order.items === 'string'
+        ? JSON.parse(order.items)
+        : (order.items ?? [])
+    };
+  }
+
+  // ─── findAll ──────────────────────────────────────────────────────────────
   static async findAll() {
     const pool = getPool();
-    
-    const [orders] = await pool.query(`
-      SELECT o.*, 
-             CASE 
-               WHEN COUNT(oi.id) > 0 THEN 
-                 JSON_ARRAYAGG(
-                   JSON_OBJECT(
-                     'id', oi.id,
-                     'type', oi.type,
-                     'quantity', oi.quantity,
-                     'price', oi.price
-                   )
-                 )
-               ELSE JSON_ARRAY()
-             END as items
-      FROM orders o
+
+    const { rows } = await pool.query(`
+      SELECT o.*, ${Order.#itemsAgg}
+      FROM   orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       GROUP BY o.id
       ORDER BY o.created_at DESC
     `);
 
-    return orders.map(order => ({
-      ...order,
-      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []
-    }));
+    return rows.map(Order.#parseItems);
   }
 
-  /**
-   * Find order by ID
-   */
+  // ─── findById ─────────────────────────────────────────────────────────────
   static async findById(id) {
     const pool = getPool();
-    
-    const [orders] = await pool.query(`
-      SELECT o.*, 
-             CASE 
-               WHEN COUNT(oi.id) > 0 THEN 
-                 JSON_ARRAYAGG(
-                   JSON_OBJECT(
-                     'id', oi.id,
-                     'type', oi.type,
-                     'quantity', oi.quantity,
-                     'price', oi.price
-                   )
-                 )
-               ELSE JSON_ARRAY()
-             END as items
-      FROM orders o
+
+    const { rows } = await pool.query(`
+      SELECT o.*, ${Order.#itemsAgg}
+      FROM   orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.id = ?
+      WHERE  o.id = $1
       GROUP BY o.id
     `, [id]);
 
-    if (orders.length === 0) {
-      return null;
-    }
-
-    return {
-      ...orders[0],
-      items: typeof orders[0].items === 'string' ? JSON.parse(orders[0].items) : orders[0].items || []
-    };
+    if (rows.length === 0) return null;
+    return Order.#parseItems(rows[0]);
   }
 
-  /**
-   * Create new order with items
-   */
+  // ─── create ───────────────────────────────────────────────────────────────
   static async create(orderData) {
     const pool = getPool();
-    const connection = await pool.getConnection();
-    
-    try {
-      await connection.beginTransaction();
+    const client = await pool.connect();   // ← pg equivalent of getConnection()
 
-      // Insert order (✅ include client_email)
-      const [orderResult] = await connection.query(
-        `INSERT INTO orders (order_code, client_name, client_phone, client_email, status, 
-         payment_method, payment_status, total_amount)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    try {
+      await client.query('BEGIN');
+
+      // Insert the order and get the new id via RETURNING
+      const { rows: [order] } = await client.query(
+        `INSERT INTO orders
+           (order_code, client_name, client_phone, client_email,
+            status, payment_method, payment_status, total_amount)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id`,
         [
           orderData.order_code,
           orderData.client_name,
@@ -96,153 +101,139 @@ class Order {
         ]
       );
 
-      const orderId = orderResult.insertId;
+      const orderId = order.id;
 
-      // Insert order items
+      // Bulk-insert items using unnest (clean, efficient, avoids string building)
       if (orderData.items && orderData.items.length > 0) {
-        const itemsValues = orderData.items.map(item => [
-          orderId,
-          item.type,
-          item.quantity,
-          item.price
-        ]);
+        const orderIds = orderData.items.map(() => orderId);
+        const types     = orderData.items.map(i => i.type);
+        const quantities = orderData.items.map(i => i.quantity);
+        const prices    = orderData.items.map(i => i.price);
 
-        await connection.query(
-          'INSERT INTO order_items (order_id, type, quantity, price) VALUES ?',
-          [itemsValues]
+        await client.query(
+          `INSERT INTO order_items (order_id, type, quantity, price)
+           SELECT * FROM UNNEST($1::int[], $2::text[], $3::int[], $4::numeric[])`,
+          [orderIds, types, quantities, prices]
         );
       }
 
-      await connection.commit();
+      await client.query('COMMIT');
 
-      // Return the created order
       return await this.findById(orderId);
     } catch (error) {
-      await connection.rollback();
+      await client.query('ROLLBACK');
       throw error;
     } finally {
-      connection.release();
+      client.release();
     }
   }
 
-  /**
-   * Update order
-   */
+  // ─── update ───────────────────────────────────────────────────────────────
   static async update(id, updates) {
     const pool = getPool();
-    
-    const allowedFields = ['status', 'payment_method', 'payment_status', 'client_name', 'client_phone', 'client_email'];
-    const updateFields = [];
-    const updateValues = [];
+
+    const allowedFields = [
+      'status', 'payment_method', 'payment_status',
+      'client_name', 'client_phone', 'client_email'
+    ];
+
+    const setClauses = [];
+    const values     = [];
+    let   paramIdx   = 1;
 
     Object.keys(updates).forEach(key => {
       if (allowedFields.includes(key)) {
-        updateFields.push(`${key} = ?`);
-        updateValues.push(updates[key]);
+        setClauses.push(`${key} = $${paramIdx++}`);
+        values.push(updates[key]);
       }
     });
 
-    if (updateFields.length === 0) {
+    if (setClauses.length === 0) {
       throw new Error('No valid fields to update');
     }
 
-    updateValues.push(id);
+    // updated_at is also handled by the DB trigger, but being explicit is fine
+    setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);   // for the WHERE clause
 
     await pool.query(
-      `UPDATE orders SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      updateValues
+      `UPDATE orders SET ${setClauses.join(', ')} WHERE id = $${paramIdx}`,
+      values
     );
 
     return await this.findById(id);
   }
 
-  /**
-   * Delete order (cascade deletes items)
-   */
+  // ─── delete ───────────────────────────────────────────────────────────────
   static async delete(id) {
     const pool = getPool();
-    
-    const [result] = await pool.query('DELETE FROM orders WHERE id = ?', [id]);
-    
-    return result.affectedRows > 0;
+
+    const { rowCount } = await pool.query(
+      'DELETE FROM orders WHERE id = $1',
+      [id]
+    );
+
+    return rowCount > 0;
   }
 
-  /**
-   * Search orders
-   */
+  // ─── search ───────────────────────────────────────────────────────────────
   static async search(query) {
     const pool = getPool();
-    
-    const [orders] = await pool.query(`
-      SELECT o.*, 
-             CASE 
-               WHEN COUNT(oi.id) > 0 THEN 
-                 JSON_ARRAYAGG(
-                   JSON_OBJECT(
-                     'id', oi.id,
-                     'type', oi.type,
-                     'quantity', oi.quantity,
-                     'price', oi.price
-                   )
-                 )
-               ELSE JSON_ARRAY()
-             END as items
-      FROM orders o
+    const like = `%${query}%`;
+
+    const { rows } = await pool.query(`
+      SELECT o.*, ${Order.#itemsAgg}
+      FROM   orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.order_code LIKE ? 
-         OR o.client_name LIKE ? 
-         OR o.client_phone LIKE ?
-         OR o.client_email LIKE ?
+      WHERE  o.order_code   ILIKE $1
+          OR o.client_name  ILIKE $2
+          OR o.client_phone ILIKE $3
+          OR o.client_email ILIKE $4
       GROUP BY o.id
       ORDER BY o.created_at DESC
-    `, [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]);
+    `, [like, like, like, like]);
 
-    return orders.map(order => ({
-      ...order,
-      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items || []
-    }));
+    return rows.map(Order.#parseItems);
   }
 
-  /**
-   * Get statistics
-   */
+  // ─── getStats ─────────────────────────────────────────────────────────────
   static async getStats() {
     const pool = getPool();
 
-    // Today's orders
-    const [todayOrders] = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM orders 
-      WHERE DATE(created_at) = CURDATE()
+    // Today's order count
+    const { rows: [todayRow] } = await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM   orders
+      WHERE  created_at::date = CURRENT_DATE
     `);
 
-    // Pending orders
-    const [pendingOrders] = await pool.query(`
-      SELECT COUNT(*) as count 
-      FROM orders 
-      WHERE status != 'Picked Up'
+    // Active (not picked-up) orders
+    const { rows: [pendingRow] } = await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM   orders
+      WHERE  status <> 'Picked Up'
     `);
 
-    // Today's income
-    const [todayIncome] = await pool.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total 
-      FROM orders 
-      WHERE DATE(created_at) = CURDATE() 
-        AND payment_status = 'Paid'
+    // Today's paid revenue
+    const { rows: [incomeRow] } = await pool.query(`
+      SELECT COALESCE(SUM(total_amount), 0) AS total
+      FROM   orders
+      WHERE  created_at::date = CURRENT_DATE
+        AND  payment_status = 'Paid'
     `);
 
-    // Unpaid amount
-    const [unpaidAmount] = await pool.query(`
-      SELECT COALESCE(SUM(total_amount), 0) as total 
-      FROM orders 
-      WHERE payment_status = 'Unpaid'
+    // All-time unpaid amount
+    const { rows: [unpaidRow] } = await pool.query(`
+      SELECT COALESCE(SUM(total_amount), 0) AS total
+      FROM   orders
+      WHERE  payment_status = 'Unpaid'
     `);
 
     return {
-      todayOrders: todayOrders[0].count,
-      pendingOrders: pendingOrders[0].count,
-      todayIncome: parseFloat(todayIncome[0].total),
-      unpaidAmount: parseFloat(unpaidAmount[0].total)
+      todayOrders:  parseInt(todayRow.count,  10),
+      pendingOrders: parseInt(pendingRow.count, 10),
+      todayIncome:  parseFloat(incomeRow.total),
+      unpaidAmount: parseFloat(unpaidRow.total)
     };
   }
 }

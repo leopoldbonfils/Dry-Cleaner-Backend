@@ -21,8 +21,8 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "mysql2": "^3.6.5",
-    "nodemailer": "^7.0.12"
+    "nodemailer": "^7.0.12",
+    "pg": "^8.18.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
