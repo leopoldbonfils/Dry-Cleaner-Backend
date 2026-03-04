@@ -1,17 +1,37 @@
 const nodemailer = require('nodemailer');
 
-// Create reusable transporter
+// Create reusable transporter using Brevo HTTP API (works on Render free tier)
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 587,
+  host: 'smtp-relay.brevo.com',
+  port: 587,
   secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  },
-  debug: true,
-  logger: true
+  }
 });
+
+// Override sendMail to use Brevo HTTP API instead of SMTP
+transporter.sendMail = async function(mailOptions) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'api-key': process.env.EMAIL_PASSWORD
+    },
+    body: JSON.stringify({
+      sender: { name: 'CleanPro', email: process.env.EMAIL_FROM },
+      to: [{ email: mailOptions.to }],
+      subject: mailOptions.subject,
+      htmlContent: mailOptions.html
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.message || 'Brevo API error');
+  }
+  return { messageId: 'sent-via-brevo-api' };
+};
 
 /**
  * Helper: Format currency for emails
@@ -44,7 +64,7 @@ const sendOTPEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send OTP email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_FROM}>`,
+    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: 'Your CleanPro Verification Code',
     html: `
@@ -104,7 +124,7 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send password reset email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_FROM}>`,
+    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: 'Reset Your CleanPro Password',
     html: `
@@ -179,7 +199,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
   `).join('');
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_FROM}>`,
+    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
     subject: `Order Confirmation - ${orderDetails.orderCode}`,
     html: `
@@ -284,13 +304,13 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
 };
 
 /**
- * Send Order Ready Notification to Clients
+ * Send Order Ready Notification to Client
  */
 const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
   console.log('📧 Attempting to send order ready notification to:', clientEmail);
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_FROM}>`,
+    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
     subject: `Your Order is Ready! - ${orderDetails.orderCode}`,
     html: `
