@@ -284,7 +284,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
 };
 
 /**
- * Send Order Ready Notification to Client
+ * Send Order Ready Notification to Clients
  */
 const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
   console.log('📧 Attempting to send order ready notification to:', clientEmail);
