@@ -3,8 +3,8 @@ const nodemailer = require('nodemailer');
 // Create reusable transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 465,
-  secure: true,
+  port: parseInt(process.env.EMAIL_PORT) || 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
@@ -44,7 +44,7 @@ const sendOTPEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send OTP email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
+    from: `"CleanPro" <${process.env.EMAIL_FROM}>`,
     to: email,
     subject: 'Your CleanPro Verification Code',
     html: `
@@ -104,7 +104,7 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send password reset email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
+    from: `"CleanPro" <${process.env.EMAIL_FROM}>`,
     to: email,
     subject: 'Reset Your CleanPro Password',
     html: `
@@ -179,7 +179,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
   `).join('');
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
+    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_FROM}>`,
     to: clientEmail,
     subject: `Order Confirmation - ${orderDetails.orderCode}`,
     html: `
@@ -290,7 +290,7 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
   console.log('📧 Attempting to send order ready notification to:', clientEmail);
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
+    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_FROM}>`,
     to: clientEmail,
     subject: `Your Order is Ready! - ${orderDetails.orderCode}`,
     html: `
