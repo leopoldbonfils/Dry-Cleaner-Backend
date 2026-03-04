@@ -33,6 +33,11 @@ transporter.sendMail = async function(mailOptions) {
   return { messageId: 'sent-via-brevo-api' };
 };
 
+// Override verify to skip SMTP connection test
+transporter.verify = async function() {
+  return true;
+};
+
 /**
  * Helper: Format currency for emails
  */
