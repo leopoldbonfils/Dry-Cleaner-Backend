@@ -2,6 +2,34 @@ const { getPool } = require('../config/database');
 const { createUsersTable } = require('./initUsers');
 
 /**
+ * Add user_id column to orders if it doesn't already exist (migration guard).
+ */
+const addUserIdColumn = async () => {
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_catalog = current_database()
+        AND table_schema  = 'public'
+        AND table_name    = 'orders'
+        AND column_name   = 'user_id'
+    `);
+    if (rows.length > 0) {
+      console.log('  user_id column already exists');
+      return true;
+    }
+    await pool.query(`ALTER TABLE orders ADD COLUMN user_id INT`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id)`);
+    console.log('user_id column added to orders table');
+    return true;
+  } catch (error) {
+    console.error(' Error adding user_id column:', error.message);
+    throw error;
+  }
+};
+
+/**
  * Add client_email column to orders if it doesn't already exist (migration guard).
  *
  * PostgreSQL version:
@@ -66,6 +94,7 @@ const createOrdersTable = async () => {
         client_name     VARCHAR(100)   NOT NULL,
         client_phone    VARCHAR(20)    NOT NULL,
         client_email    VARCHAR(255),
+        user_id         INT,
         status          VARCHAR(20)    NOT NULL DEFAULT 'Pending'
                           CHECK (status IN ('Pending','Washing','Ironing','Ready','Picked Up')),
         payment_method  VARCHAR(20)    NOT NULL
@@ -152,8 +181,9 @@ const initializeTables = async () => {
     await createOrdersTable();
     await createOrderItemsTable();
 
-    // Migration guard – idempotent
+    // Migration guards – idempotent
     await addClientEmailColumn();
+    await addUserIdColumn();
 
     console.log(' All tables initialized successfully');
     console.log('ℹ  Database is empty and ready for your first order!');

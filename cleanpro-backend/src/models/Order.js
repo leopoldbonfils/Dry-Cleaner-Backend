@@ -44,16 +44,24 @@ class Order {
   }
 
   // ─── findAll ──────────────────────────────────────────────────────────────
-  static async findAll() {
+  static async findAll(userId) {
     const pool = getPool();
+    const params = [];
+    let whereClause = '';
+
+    if (userId) {
+      whereClause = 'WHERE o.user_id = $1';
+      params.push(userId);
+    }
 
     const { rows } = await pool.query(`
       SELECT o.*, ${Order.#itemsAgg}
       FROM   orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
+      ${whereClause}
       GROUP BY o.id
       ORDER BY o.created_at DESC
-    `);
+    `, params);
 
     return rows.map(Order.#parseItems);
   }
@@ -86,8 +94,8 @@ class Order {
       const { rows: [order] } = await client.query(
         `INSERT INTO orders
            (order_code, client_name, client_phone, client_email,
-            status, payment_method, payment_status, total_amount)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            status, payment_method, payment_status, total_amount, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id`,
         [
           orderData.order_code,
@@ -97,7 +105,8 @@ class Order {
           orderData.status || 'Pending',
           orderData.payment_method,
           orderData.payment_status,
-          orderData.total_amount
+          orderData.total_amount,
+          orderData.user_id || null
         ]
       );
 
@@ -177,42 +186,54 @@ class Order {
   }
 
   // ─── search ───────────────────────────────────────────────────────────────
-  static async search(query) {
+  static async search(query, userId) {
     const pool = getPool();
     const like = `%${query}%`;
+    const params = [like, like, like, like];
+    let userFilter = '';
+
+    if (userId) {
+      userFilter = 'AND o.user_id = $5';
+      params.push(userId);
+    }
 
     const { rows } = await pool.query(`
       SELECT o.*, ${Order.#itemsAgg}
       FROM   orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE  o.order_code   ILIKE $1
+      WHERE  (o.order_code   ILIKE $1
           OR o.client_name  ILIKE $2
           OR o.client_phone ILIKE $3
-          OR o.client_email ILIKE $4
+          OR o.client_email ILIKE $4)
+      ${userFilter}
       GROUP BY o.id
       ORDER BY o.created_at DESC
-    `, [like, like, like, like]);
+    `, params);
 
     return rows.map(Order.#parseItems);
   }
 
   // ─── getStats ─────────────────────────────────────────────────────────────
-  static async getStats() {
+  static async getStats(userId) {
     const pool = getPool();
+    const userFilter = userId ? 'AND user_id = $1' : '';
+    const params = userId ? [userId] : [];
 
     // Today's order count
     const { rows: [todayRow] } = await pool.query(`
       SELECT COUNT(*) AS count
       FROM   orders
       WHERE  created_at::date = CURRENT_DATE
-    `);
+      ${userFilter}
+    `, params);
 
     // Active (not picked-up) orders
     const { rows: [pendingRow] } = await pool.query(`
       SELECT COUNT(*) AS count
       FROM   orders
       WHERE  status <> 'Picked Up'
-    `);
+      ${userFilter}
+    `, params);
 
     // Today's paid revenue
     const { rows: [incomeRow] } = await pool.query(`
@@ -220,14 +241,16 @@ class Order {
       FROM   orders
       WHERE  created_at::date = CURRENT_DATE
         AND  payment_status = 'Paid'
-    `);
+      ${userFilter}
+    `, params);
 
     // All-time unpaid amount
     const { rows: [unpaidRow] } = await pool.query(`
       SELECT COALESCE(SUM(total_amount), 0) AS total
       FROM   orders
       WHERE  payment_status = 'Unpaid'
-    `);
+      ${userFilter}
+    `, params);
 
     return {
       todayOrders:  parseInt(todayRow.count,  10),

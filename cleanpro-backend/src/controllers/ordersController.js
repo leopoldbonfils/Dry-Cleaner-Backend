@@ -7,7 +7,8 @@ const { generateOrderCode, calculateTotal, validateOrderData } = require('../uti
  */
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.findAll();
+    const userId = req.headers['x-user-id'] || null;
+    const orders = await Order.findAll(userId);
     
     res.json({
       success: true,
@@ -69,7 +70,8 @@ const createOrder = async (req, res) => {
       payment_method: orderData.payment_method,
       payment_status: orderData.payment_status,
       total_amount: orderData.total_amount || calculateTotal(orderData.items),
-      order_code: generateOrderCode()
+      order_code: generateOrderCode(),
+      user_id: req.headers['x-user-id'] || null
     };
 
     // ✅ Validate
@@ -271,7 +273,8 @@ const searchOrders = async (req, res) => {
       });
     }
 
-    const orders = await Order.search(query);
+    const userId = req.headers['x-user-id'] || null;
+    const orders = await Order.search(query, userId);
 
     res.json({
       success: true,
@@ -293,7 +296,8 @@ const searchOrders = async (req, res) => {
  */
 const getStats = async (req, res) => {
   try {
-    const stats = await Order.getStats();
+    const userId = req.headers['x-user-id'] || null;
+    const stats = await Order.getStats(userId);
 
     res.json({
       success: true,
