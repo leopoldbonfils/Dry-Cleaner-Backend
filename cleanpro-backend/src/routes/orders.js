@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const ordersController = require('../controllers/ordersController');
+const authenticate = require('../middleware/authenticate');
 
-// GET routes
-router.get('/', ordersController.getAllOrders);
-router.get('/stats', ordersController.getStats);
-router.get('/search', ordersController.searchOrders);
-router.get('/:id', ordersController.getOrderById);
-
-// POST routes
-router.post('/', ordersController.createOrder);
-
-// PUT routes
-router.put('/:id', ordersController.updateOrder);
-
-// DELETE routes
-router.delete('/:id', ordersController.deleteOrder);
+// All order routes require a valid JWT token
+router.get('/',        authenticate, ordersController.getAllOrders);
+router.get('/stats',   authenticate, ordersController.getStats);
+router.get('/search',  authenticate, ordersController.searchOrders);
+router.get('/:id',     authenticate, ordersController.getOrderById);
+router.post('/',       authenticate, ordersController.createOrder);
+router.put('/:id',     authenticate, ordersController.updateOrder);
+router.delete('/:id',  authenticate, ordersController.deleteOrder);
 
 module.exports = router;

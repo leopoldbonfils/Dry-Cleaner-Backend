@@ -1,14 +1,30 @@
 const Order = require('../models/Order');
+const { getPool } = require('../config/database');
 const { sendOrderConfirmationEmail, sendOrderReadyEmail } = require('../services/emailService');
 const { generateOrderCode, calculateTotal, validateOrderData } = require('../utils/helpers');
+
+/**
+ * Helper: Get the business owner's contact info by their user ID
+ */
+const getBusinessOwner = async (userId) => {
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      'SELECT email, phone FROM users WHERE id = $1',
+      [userId]
+    );
+    return rows[0] || {};
+  } catch {
+    return {};
+  }
+};
 
 /**
  * Get all orders
  */
 const getAllOrders = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] || null;
-    const orders = await Order.findAll(userId);
+    const orders = await Order.findAll(req.user.id);
     
     res.json({
       success: true,
@@ -63,6 +79,7 @@ const createOrder = async (req, res) => {
 
     // ✅ Data arrives as snake_case from api.js interceptor
     const dbData = {
+      user_id: req.user.id,
       client_name: orderData.client_name,
       client_phone: orderData.client_phone,
       client_email: orderData.client_email || null,
@@ -70,8 +87,7 @@ const createOrder = async (req, res) => {
       payment_method: orderData.payment_method,
       payment_status: orderData.payment_status,
       total_amount: orderData.total_amount || calculateTotal(orderData.items),
-      order_code: generateOrderCode(),
-      user_id: req.headers['x-user-id'] || null
+      order_code: generateOrderCode()
     };
 
     // ✅ Validate
@@ -110,6 +126,7 @@ const createOrder = async (req, res) => {
           console.log('╚════════════════════════════════════════╝\n');
         }
         
+        const owner = await getBusinessOwner(req.user.id);
         await sendOrderConfirmationEmail(
           dbData.client_email,
           dbData.client_name,
@@ -121,7 +138,8 @@ const createOrder = async (req, res) => {
             paymentStatus: newOrder.payment_status,
             totalAmount: newOrder.total_amount,
             items: newOrder.items,
-            clientPhone: newOrder.client_phone
+            businessPhone: owner.phone || '',
+            senderEmail: owner.email || process.env.EMAIL_FROM
           }
         );
         console.log('✅ Order confirmation email sent to:', dbData.client_email);
@@ -196,6 +214,7 @@ const updateOrder = async (req, res) => {
           console.log('╚════════════════════════════════════════╝\n');
         }
         
+        const owner = await getBusinessOwner(updatedOrder.user_id || req.user.id);
         await sendOrderReadyEmail(
           updatedOrder.client_email,
           updatedOrder.client_name,
@@ -205,7 +224,8 @@ const updateOrder = async (req, res) => {
             paymentStatus: updatedOrder.payment_status,
             totalAmount: updatedOrder.total_amount,
             items: updatedOrder.items,
-            clientPhone: updatedOrder.client_phone
+            businessPhone: owner.phone || '',
+            senderEmail: owner.email || process.env.EMAIL_FROM
           }
         );
         console.log('✅ Order ready email sent to:', updatedOrder.client_email);
@@ -273,8 +293,7 @@ const searchOrders = async (req, res) => {
       });
     }
 
-    const userId = req.headers['x-user-id'] || null;
-    const orders = await Order.search(query, userId);
+    const orders = await Order.search(query, req.user.id);
 
     res.json({
       success: true,
@@ -296,8 +315,7 @@ const searchOrders = async (req, res) => {
  */
 const getStats = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'] || null;
-    const stats = await Order.getStats(userId);
+    const stats = await Order.getStats(req.user.id);
 
     res.json({
       success: true,

@@ -13,18 +13,25 @@ const transporter = nodemailer.createTransport({
 
 // Override sendMail to use Brevo HTTP API instead of SMTP
 transporter.sendMail = async function(mailOptions) {
+  const payload = {
+    sender: { name: 'CleanPro', email: process.env.EMAIL_FROM },
+    to: [{ email: mailOptions.to }],
+    subject: mailOptions.subject,
+    htmlContent: mailOptions.html
+  };
+
+  // Dynamically set replyTo to the business owner's email when provided
+  if (mailOptions.replyTo) {
+    payload.replyTo = { email: mailOptions.replyTo };
+  }
+
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'api-key': process.env.EMAIL_PASSWORD
     },
-    body: JSON.stringify({
-      sender: { name: 'CleanPro', email: process.env.EMAIL_FROM },
-      to: [{ email: mailOptions.to }],
-      subject: mailOptions.subject,
-      htmlContent: mailOptions.html
-    })
+    body: JSON.stringify(payload)
   });
   if (!response.ok) {
     const err = await response.json();
@@ -193,6 +200,7 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
  */
 const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails) => {
   console.log('📧 Attempting to send order confirmation to:', clientEmail);
+  // businessPhone: the dry clean owner's phone; senderEmail: owner's email for replyTo
 
   const itemsHTML = orderDetails.items.map(item => `
     <tr>
@@ -206,6 +214,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
   const mailOptions = {
     from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
+    replyTo: orderDetails.senderEmail || process.env.EMAIL_FROM,
     subject: `Order Confirmation - ${orderDetails.orderCode}`,
     html: `
       <!DOCTYPE html>
@@ -283,7 +292,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
 
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <strong>📱 Need Help?</strong>
-              <p style="margin: 10px 0 0 0;">Contact us at <strong>${orderDetails.clientPhone}</strong> or reply to this email.</p>
+              <p style="margin: 10px 0 0 0;">Contact us at <strong>${orderDetails.businessPhone}</strong> or reply to this email.</p>
             </div>
 
             <p style="margin-top: 30px;">We'll notify you when your order is ready for pickup!</p>
@@ -317,6 +326,7 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
   const mailOptions = {
     from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
+    replyTo: orderDetails.senderEmail || process.env.EMAIL_FROM,
     subject: `Your Order is Ready! - ${orderDetails.orderCode}`,
     html: `
       <!DOCTYPE html>
@@ -383,7 +393,7 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
 
             <div style="background: #f0fdf4; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
               <strong>📱 Questions?</strong>
-              <p style="margin: 10px 0 0 0;">Contact us at <strong>${orderDetails.clientPhone}</strong> or reply to this email.</p>
+              <p style="margin: 10px 0 0 0;">Contact us at <strong>${orderDetails.businessPhone}</strong> or reply to this email.</p>
             </div>
 
             <p style="margin-top: 30px;">We look forward to seeing you!</p>
@@ -415,10 +425,10 @@ const testEmailConfig = async () => {
   try {
     console.log('🔍 Testing email configuration...');
     await transporter.verify();
-    console.log('✅ Email service is ready');
+    console.log(' Email service is ready');
     return true;
   } catch (error) {
-    console.error('❌ Email service error:', error.message);
+    console.error(' Email service error:', error.message);
     return false;
   }
 };

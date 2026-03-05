@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const jwt  = require('jsonwebtoken');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 /**
@@ -191,9 +192,17 @@ const verifyOTP = async (req, res) => {
 
     console.log('✅ OTP verified successfully for user:', user.id);
 
+    // Issue JWT so the frontend can authenticate subsequent requests
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({
       success: true,
       message: 'Verification successful! Redirecting to dashboard...',
+      token,
       data: {
         userId: user.id,
         email: user.email,
@@ -610,7 +619,7 @@ module.exports = {
   forgotPassword,
   verifyResetOTP,
   resetPassword,
-  getProfile,      // ✅ Added
-  updateProfile,   // ✅ Added
-  changePassword   // ✅ Added
+  getProfile,      
+  updateProfile,   
+  changePassword   
 };

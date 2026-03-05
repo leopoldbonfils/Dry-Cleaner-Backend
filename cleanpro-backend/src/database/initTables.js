@@ -2,7 +2,7 @@ const { getPool } = require('../config/database');
 const { createUsersTable } = require('./initUsers');
 
 /**
- * Add user_id column to orders if it doesn't already exist (migration guard).
+ * Migration guard: add user_id column to orders if it doesn't already exist.
  */
 const addUserIdColumn = async () => {
   const pool = getPool();
@@ -17,14 +17,18 @@ const addUserIdColumn = async () => {
     `);
     if (rows.length > 0) {
       console.log('  user_id column already exists');
-      return true;
+      return;
     }
-    await pool.query(`ALTER TABLE orders ADD COLUMN user_id INT`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id)`);
-    console.log('user_id column added to orders table');
-    return true;
+    await pool.query(`
+      ALTER TABLE orders
+        ADD COLUMN user_id INT REFERENCES users(id) ON DELETE SET NULL
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders (user_id)
+    `);
+    console.log('  user_id column added to orders table');
   } catch (error) {
-    console.error(' Error adding user_id column:', error.message);
+    console.error('  Error adding user_id column:', error.message);
     throw error;
   }
 };
@@ -90,11 +94,11 @@ const createOrdersTable = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id              SERIAL PRIMARY KEY,
+        user_id         INT            REFERENCES users(id) ON DELETE SET NULL,
         order_code      VARCHAR(50)    UNIQUE NOT NULL,
         client_name     VARCHAR(100)   NOT NULL,
         client_phone    VARCHAR(20)    NOT NULL,
         client_email    VARCHAR(255),
-        user_id         INT,
         status          VARCHAR(20)    NOT NULL DEFAULT 'Pending'
                           CHECK (status IN ('Pending','Washing','Ironing','Ready','Picked Up')),
         payment_method  VARCHAR(20)    NOT NULL
@@ -114,6 +118,7 @@ const createOrdersTable = async () => {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status         ON orders (status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders (payment_status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_created_at     ON orders (created_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user_id        ON orders (user_id)`);
 
     // updated_at trigger (reuse the function created in initUsers)
     await pool.query(`
@@ -182,8 +187,8 @@ const initializeTables = async () => {
     await createOrderItemsTable();
 
     // Migration guards – idempotent
-    await addClientEmailColumn();
     await addUserIdColumn();
+    await addClientEmailColumn();
 
     console.log(' All tables initialized successfully');
     console.log('ℹ  Database is empty and ready for your first order!');
