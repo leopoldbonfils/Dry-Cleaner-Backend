@@ -10,7 +10,7 @@ const getBusinessOwner = async (userId) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      'SELECT email, phone FROM users WHERE id = $1',
+      'SELECT email, phone, business_name FROM users WHERE id = $1',
       [userId]
     );
     return rows[0] || {};
@@ -139,7 +139,8 @@ const createOrder = async (req, res) => {
             totalAmount: newOrder.total_amount,
             items: newOrder.items,
             businessPhone: owner.phone || '',
-            senderEmail: owner.email || process.env.EMAIL_FROM
+            senderEmail: owner.email || process.env.EMAIL_FROM,
+            businessName: owner.business_name || 'Dry Clean'
           }
         );
         console.log('✅ Order confirmation email sent to:', dbData.client_email);
@@ -225,7 +226,8 @@ const updateOrder = async (req, res) => {
             totalAmount: updatedOrder.total_amount,
             items: updatedOrder.items,
             businessPhone: owner.phone || '',
-            senderEmail: owner.email || process.env.EMAIL_FROM
+            senderEmail: owner.email || process.env.EMAIL_FROM,
+            businessName: owner.business_name || 'Dry Clean'
           }
         );
         console.log('✅ Order ready email sent to:', updatedOrder.client_email);

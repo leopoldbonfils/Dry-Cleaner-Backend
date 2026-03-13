@@ -13,8 +13,10 @@ const transporter = nodemailer.createTransport({
 
 // Override sendMail to use Brevo HTTP API instead of SMTP
 transporter.sendMail = async function(mailOptions) {
+  const fromMatch = (mailOptions.from || '').match(/^"?([^"<]+)"?\s*</);
+  const senderName = fromMatch ? fromMatch[1].trim() : 'Dry Clean';
   const payload = {
-    sender: { name: 'CleanPro', email: process.env.EMAIL_FROM },
+    sender: { name: senderName, email: process.env.EMAIL_FROM },
     to: [{ email: mailOptions.to }],
     subject: mailOptions.subject,
     htmlContent: mailOptions.html
@@ -76,9 +78,9 @@ const sendOTPEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send OTP email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
+    from: `"Dry Clean" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: 'Your CleanPro Verification Code',
+    subject: 'Your Dry Clean Verification Code',
     html: `
       <!DOCTYPE html>
       <html>
@@ -96,7 +98,7 @@ const sendOTPEmail = async (email, fullName, otp) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🧺 CleanPro</h1>
+            <h1>🧺 Dry Clean</h1>
             <p>Verify Your Account</p>
           </div>
           <div class="content">
@@ -108,10 +110,10 @@ const sendOTPEmail = async (email, fullName, otp) => {
             </div>
             <p><strong>This code will expire in 10 minutes.</strong></p>
             <p>If you didn't request this code, please ignore this email.</p>
-            <p>Best regards,<br>The CleanPro Team</p>
+            <p>Best regards,<br>The Dry Clean Team</p>
           </div>
           <div class="footer">
-            <p>&copy; 2024 CleanPro. All rights reserved.</p>
+            <p>&copy; 2024 Dry Clean. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -136,9 +138,9 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
   console.log('📧 Attempting to send password reset email to:', email);
 
   const mailOptions = {
-    from: `"CleanPro" <${process.env.EMAIL_USER}>`,
+    from: `"Dry Clean" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: 'Reset Your CleanPro Password',
+    subject: 'Reset Your Dry Clean Password',
     html: `
       <!DOCTYPE html>
       <html>
@@ -174,10 +176,10 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
                 <li>If you didn't request this, please ignore this email</li>
               </ul>
             </div>
-            <p>Best regards,<br>The CleanPro Team</p>
+            <p>Best regards,<br>The Dry Clean Team</p>
           </div>
           <div class="footer">
-            <p>&copy; 2024 CleanPro. All rights reserved.</p>
+            <p>&copy; 2024 Dry Clean. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -212,7 +214,7 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
   `).join('');
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
+    from: `"${orderDetails.businessName || 'Dry Clean'}" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
     replyTo: orderDetails.senderEmail || process.env.EMAIL_FROM,
     subject: `Order Confirmation - ${orderDetails.orderCode}`,
@@ -239,12 +241,12 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
       <body>
         <div class="container">
           <div class="header">
-            <h1>🧺 CleanPro Dry Cleaning</h1>
+            <h1>🧺 ${orderDetails.businessName || 'Dry Clean'}</h1>
             <p>Order Confirmation</p>
           </div>
           <div class="content">
             <h2>Hello ${clientName}!</h2>
-            <p>Thank you for choosing CleanPro! Your order has been received and is being processed.</p>
+            <p>Thank you for choosing ${orderDetails.businessName || 'Dry Clean'}! Your order has been received and is being processed.</p>
             
             <div class="order-box">
               <p style="margin: 0; font-size: 14px; color: #666; text-align: center;">Order Number</p>
@@ -296,10 +298,10 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
             </div>
 
             <p style="margin-top: 30px;">We'll notify you when your order is ready for pickup!</p>
-            <p>Best regards,<br>The CleanPro Team</p>
+            <p>Best regards,<br>The ${orderDetails.businessName || 'Dry Clean'} Team</p>
           </div>
           <div class="footer">
-            <p>&copy; 2024 CleanPro Dry Cleaning. All rights reserved.</p>
+            <p>&copy; 2024 ${orderDetails.businessName || 'Dry Clean'}. All rights reserved.</p>
           </div>
         </div>
       </body>
@@ -324,7 +326,7 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
   console.log('📧 Attempting to send order ready notification to:', clientEmail);
 
   const mailOptions = {
-    from: `"CleanPro Dry Cleaning" <${process.env.EMAIL_USER}>`,
+    from: `"${orderDetails.businessName || 'Dry Clean'}" <${process.env.EMAIL_USER}>`,
     to: clientEmail,
     replyTo: orderDetails.senderEmail || process.env.EMAIL_FROM,
     subject: `Your Order is Ready! - ${orderDetails.orderCode}`,
@@ -350,7 +352,7 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>🧺 CleanPro Dry Cleaning</h1>
+            <h1>🧺 ${orderDetails.businessName || 'Dry Clean'}</h1>
             <p>Order Ready Notification</p>
           </div>
           <div class="content">
@@ -397,10 +399,10 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
             </div>
 
             <p style="margin-top: 30px;">We look forward to seeing you!</p>
-            <p>Best regards,<br>The CleanPro Team</p>
+            <p>Best regards,<br>The ${orderDetails.businessName || 'Dry Clean'} Team</p>
           </div>
           <div class="footer">
-            <p>&copy; 2024 CleanPro Dry Cleaning. All rights reserved.</p>
+            <p>&copy; 2024 ${orderDetails.businessName || 'Dry Clean'}. All rights reserved.</p>
           </div>
         </div>
       </body>
