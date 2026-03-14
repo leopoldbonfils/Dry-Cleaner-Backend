@@ -48,7 +48,7 @@ const validateOrderData = (data) => {
     errors.push('Valid phone number is required (format: 078XXXXXXX)');
   }
 
-  // ✅ Email validation (optional but must be valid if provided)
+  //  Email validation (optional but must be valid if provided)
   if (data.clientEmail && data.clientEmail.trim() !== '') {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.clientEmail)) {

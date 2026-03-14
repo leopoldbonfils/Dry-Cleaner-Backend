@@ -16,7 +16,7 @@ const { getPool } = require('../config/database');
  *  ─ DATE(col)        → col::date
  */
 class Order {
-  // ─── shared JSON aggregation fragment ───────────────────────────────────────
+  //  shared JSON aggregation fragment
   // Produces a JSON array of items, or [] when the order has no items.
   static get #itemsAgg() {
     return `
@@ -43,7 +43,7 @@ class Order {
     };
   }
 
-  // ─── findAll ──────────────────────────────────────────────────────────────
+  //  findAll
   static async findAll(userId) {
     const pool = getPool();
 
@@ -59,7 +59,7 @@ class Order {
     return rows.map(Order.#parseItems);
   }
 
-  // ─── findById ─────────────────────────────────────────────────────────────
+  //  findById
   static async findById(id) {
     const pool = getPool();
 
@@ -75,7 +75,7 @@ class Order {
     return Order.#parseItems(rows[0]);
   }
 
-  // ─── create ───────────────────────────────────────────────────────────────
+  //  create
   static async create(orderData) {
     const pool = getPool();
     const client = await pool.connect();   // ← pg equivalent of getConnection()
@@ -130,7 +130,7 @@ class Order {
     }
   }
 
-  // ─── update ───────────────────────────────────────────────────────────────
+  //  update
   static async update(id, updates) {
     const pool = getPool();
 
@@ -166,7 +166,7 @@ class Order {
     return await this.findById(id);
   }
 
-  // ─── delete ───────────────────────────────────────────────────────────────
+  //  delete 
   static async delete(id) {
     const pool = getPool();
 
@@ -178,7 +178,7 @@ class Order {
     return rowCount > 0;
   }
 
-  // ─── search ───────────────────────────────────────────────────────────────
+  //  search
   static async search(query, userId) {
     const pool = getPool();
     const like = `%${query}%`;
@@ -199,7 +199,7 @@ class Order {
     return rows.map(Order.#parseItems);
   }
 
-  // ─── getStats ─────────────────────────────────────────────────────────────
+  //  getStats
   static async getStats(userId) {
     const pool = getPool();
 

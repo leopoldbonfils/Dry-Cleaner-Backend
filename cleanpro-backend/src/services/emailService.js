@@ -123,10 +123,10 @@ const sendOTPEmail = async (email, fullName, otp) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ OTP email sent successfully!');
+    console.log(' OTP email sent successfully!');
     return true;
   } catch (error) {
-    console.error('❌ OTP email failed:', error.message);
+    console.error(' OTP email failed:', error.message);
     throw error;
   }
 };
@@ -189,10 +189,10 @@ const sendPasswordResetEmail = async (email, fullName, otp) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Password reset email sent successfully!');
+    console.log(' Password reset email sent successfully!');
     return true;
   } catch (error) {
-    console.error('❌ Password reset email failed:', error.message);
+    console.error(' Password reset email failed:', error.message);
     throw error;
   }
 };
@@ -311,10 +311,10 @@ const sendOrderConfirmationEmail = async (clientEmail, clientName, orderDetails)
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Order confirmation email sent successfully!');
+    console.log(' Order confirmation email sent successfully!');
     return true;
   } catch (error) {
-    console.error('❌ Order confirmation email failed:', error.message);
+    console.error(' Order confirmation email failed:', error.message);
     throw error;
   }
 };
@@ -412,10 +412,10 @@ const sendOrderReadyEmail = async (clientEmail, clientName, orderDetails) => {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Order ready email sent successfully!');
+    console.log(' Order ready email sent successfully!');
     return true;
   } catch (error) {
-    console.error('❌ Order ready email failed:', error.message);
+    console.error(' Order ready email failed:', error.message);
     throw error;
   }
 };

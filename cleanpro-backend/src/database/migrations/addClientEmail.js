@@ -36,10 +36,10 @@ const addClientEmailColumn = async () => {
         ON orders (client_email)
     `);
 
-    console.log('✅ client_email column added to orders table');
+    console.log(' client_email column added to orders table');
     return true;
   } catch (error) {
-    console.error('❌ Error adding client_email column:', error.message);
+    console.error(' Error adding client_email column:', error.message);
     throw error;
   }
 };

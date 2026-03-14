@@ -62,7 +62,7 @@ const register = async (req, res) => {
       password
     });
 
-    console.log('✅ User created with ID:', user.id);
+    console.log(' User created with ID:', user.id);
 
     res.status(201).json({
       success: true,
@@ -74,7 +74,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error in register:', error);
+    console.error(' Error in register:', error);
     res.status(500).json({
       success: false,
       message: 'Registration failed',
@@ -118,7 +118,7 @@ const login = async (req, res) => {
       });
     }
 
-    console.log('✅ Password verified for user:', user.id);
+    console.log(' Password verified for user:', user.id);
 
     // Generate OTP
     const otp = await User.generateOTP(user.id);
@@ -136,7 +136,7 @@ const login = async (req, res) => {
     // Send OTP email
     try {
       await sendOTPEmail(email, user.full_name, otp);
-      console.log('✅ OTP email sent successfully to:', email);
+      console.log(' OTP email sent successfully to:', email);
     } catch (emailError) {
       console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
     }
@@ -154,7 +154,7 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error in login:', error);
+    console.error(' Error in login:', error);
     res.status(500).json({
       success: false,
       message: 'Login failed',
@@ -190,7 +190,7 @@ const verifyOTP = async (req, res) => {
       });
     }
 
-    console.log('✅ OTP verified successfully for user:', user.id);
+    console.log(' OTP verified successfully for user:', user.id);
 
     // Issue JWT so the frontend can authenticate subsequent requests
     const token = jwt.sign(
@@ -214,7 +214,7 @@ const verifyOTP = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error in verifyOTP:', error);
+    console.error(' Error in verifyOTP:', error);
     res.status(500).json({
       success: false,
       message: 'OTP verification failed',
@@ -255,7 +255,7 @@ const resendOTP = async (req, res) => {
     // Send OTP email
     try {
       await sendOTPEmail(email, user.full_name, otp);
-      console.log('✅ OTP resent successfully to:', email);
+      console.log(' OTP resent successfully to:', email);
     } catch (emailError) {
       console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
     }
@@ -265,7 +265,7 @@ const resendOTP = async (req, res) => {
       message: 'New verification code sent to your email'
     });
   } catch (error) {
-    console.error('❌ Error in resendOTP:', error);
+    console.error(' Error in resendOTP:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to resend OTP',
@@ -316,7 +316,7 @@ const forgotPassword = async (req, res) => {
     // Send email
     try {
       await sendPasswordResetEmail(email, user.full_name, otp);
-      console.log('✅ Password reset email sent to:', email);
+      console.log(' Password reset email sent to:', email);
     } catch (emailError) {
       console.warn('⚠️ Email failed, but OTP shown in console:', emailError.message);
     }
@@ -327,7 +327,7 @@ const forgotPassword = async (req, res) => {
       email: email
     });
   } catch (error) {
-    console.error('❌ Error in forgotPassword:', error);
+    console.error(' Error in forgotPassword:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to process request',
@@ -370,7 +370,7 @@ const verifyResetOTP = async (req, res) => {
       });
     }
 
-    console.log('✅ Reset OTP verified for user:', user.id);
+    console.log(' Reset OTP verified for user:', user.id);
 
     res.json({
       success: true,
@@ -378,7 +378,7 @@ const verifyResetOTP = async (req, res) => {
       verified: true
     });
   } catch (error) {
-    console.error('❌ Error in verifyResetOTP:', error);
+    console.error(' Error in verifyResetOTP:', error);
     res.status(500).json({
       success: false,
       message: 'OTP verification failed',
@@ -437,14 +437,14 @@ const resetPassword = async (req, res) => {
     // Clear OTP
     await User.clearOTP(user.id);
 
-    console.log('✅ Password reset successful for user:', user.id);
+    console.log(' Password reset successful for user:', user.id);
 
     res.json({
       success: true,
       message: 'Password reset successful! You can now log in with your new password.'
     });
   } catch (error) {
-    console.error('❌ Error in resetPassword:', error);
+    console.error(' Error in resetPassword:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to reset password',
@@ -542,7 +542,7 @@ const updateProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error in updateProfile:', error);
+    console.error(' Error in updateProfile:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update profile',
@@ -601,7 +601,7 @@ const changePassword = async (req, res) => {
       message: 'Password changed successfully'
     });
   } catch (error) {
-    console.error('❌ Error in changePassword:', error);
+    console.error(' Error in changePassword:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to change password',

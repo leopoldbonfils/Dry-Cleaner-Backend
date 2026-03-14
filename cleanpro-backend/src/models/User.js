@@ -11,7 +11,7 @@ const bcrypt = require('bcryptjs');
  *  ─ TRUE / FALSE literals work directly in pg
  */
 class User {
-  // ─── create ───────────────────────────────────────────────────────────────
+  //  create 
   static async create(userData) {
     const pool = getPool();
 
@@ -34,7 +34,7 @@ class User {
     return await this.findById(rows[0].id);
   }
 
-  // ─── findById ─────────────────────────────────────────────────────────────
+  //  findById 
   static async findById(id) {
     const pool = getPool();
     const { rows } = await pool.query(
@@ -46,7 +46,7 @@ class User {
     return rows[0] || null;
   }
 
-  // ─── findByEmail ──────────────────────────────────────────────────────────
+  //  findByEmail 
   static async findByEmail(email) {
     const pool = getPool();
     const { rows } = await pool.query(
@@ -56,12 +56,12 @@ class User {
     return rows[0] || null;
   }
 
-  // ─── verifyPassword ───────────────────────────────────────────────────────
+  //  verifyPassword
   static async verifyPassword(plainPassword, hashedPassword) {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
 
-  // ─── generateOTP ──────────────────────────────────────────────────────────
+  //  generateOTP
   static async generateOTP(userId) {
     const pool = getPool();
 
@@ -76,7 +76,7 @@ class User {
     return otp;
   }
 
-  // ─── verifyOTP ────────────────────────────────────────────────────────────
+  //  verifyOTP
   static async verifyOTP(email, otp) {
     const pool = getPool();
 
@@ -100,7 +100,7 @@ class User {
     return rows[0];
   }
 
-  // ─── checkOTP (for password-reset – does not clear the OTP) ──────────────
+  //    checkOTP (for password-reset – does not clear the OTP) 
   static async checkOTP(email, otp) {
     const pool = getPool();
 
@@ -115,7 +115,7 @@ class User {
     return rows.length > 0;
   }
 
-  // ─── clearOTP ─────────────────────────────────────────────────────────────
+  //  clearOTP (for password-reset – clears OTP without verifying it)
   static async clearOTP(userId) {
     const pool = getPool();
     await pool.query(
@@ -124,7 +124,7 @@ class User {
     );
   }
 
-  // ─── updatePassword (by userId) ───────────────────────────────────────────
+  //  updatePassword (by userId) 
   static async updatePassword(userId, newPassword) {
     const pool = getPool();
 
@@ -139,7 +139,7 @@ class User {
     return true;
   }
 
-  // ─── updateProfile ────────────────────────────────────────────────────────
+  //  updateProfile 
   static async updateProfile(email, updates) {
     const pool = getPool();
 
@@ -170,7 +170,7 @@ class User {
     return await this.findByEmail(email);
   }
 
-  // ─── changePassword (by email) ────────────────────────────────────────────
+  //  changePassword (by email) 
   static async changePassword(email, newPassword) {
     const pool = getPool();
 

@@ -40,14 +40,14 @@ const createDatabase = async () => {
     if (rows.length === 0) {
       // identifiers cannot be parameterised in DDL — safe because it comes from .env
       await adminPool.query(`CREATE DATABASE "${dbConfig.database}"`);
-      console.log(`✅ Database '${dbConfig.database}' created`);
+      console.log(` Database '${dbConfig.database}' created`);
     } else {
-      console.log(`✅ Database '${dbConfig.database}' already exists`);
+      console.log(` Database '${dbConfig.database}' already exists`);
     }
 
     return true;
   } catch (error) {
-    console.error('❌ Error creating database:', error.message);
+    console.error(' Error creating database:', error.message);
     throw error;
   } finally {
     await adminPool.end();
@@ -63,10 +63,10 @@ const initializePool = () => {
 
     // Surface unexpected idle errors so they don't silently swallow problems
     pool.on('error', (err) => {
-      console.error('❌ Unexpected database pool error:', err.message);
+      console.error(' Unexpected database pool error:', err.message);
     });
 
-    console.log('✅ Database connection pool created');
+    console.log(' Database connection pool created');
   }
   return pool;
 };
@@ -87,11 +87,11 @@ const getPool = () => {
 const testConnection = async () => {
   try {
     const client = await pool.connect();
-    console.log('✅ Database connection successful');
+    console.log(' Database connection successful');
     client.release();
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error(' Database connection failed:', error.message);
     throw error;
   }
 };
@@ -106,7 +106,7 @@ const initializeDatabase = async () => {
     await testConnection();
     return true;
   } catch (error) {
-    console.error('❌ Database initialization failed:', error.message);
+    console.error(' Database initialization failed:', error.message);
     throw error;
   }
 };

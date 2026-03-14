@@ -14,7 +14,7 @@ const createUsersTable = async () => {
   const pool = getPool();
 
   try {
-    // ── Table ──────────────────────────────────────────────────────────────
+    //  Table 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id              SERIAL PRIMARY KEY,
@@ -31,7 +31,7 @@ const createUsersTable = async () => {
       )
     `);
 
-    // ── Indexes ────────────────────────────────────────────────────────────
+    //  Indexes 
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email
         ON users (email)
@@ -42,7 +42,7 @@ const createUsersTable = async () => {
         ON users (otp_code, otp_expires_at)
     `);
 
-    // ── auto-update trigger for updated_at ─────────────────────────────────
+    //  auto-update trigger for updated_at 
     // PostgreSQL has no ON UPDATE CURRENT_TIMESTAMP; we use a trigger instead.
     await pool.query(`
       CREATE OR REPLACE FUNCTION set_updated_at()
@@ -70,10 +70,10 @@ const createUsersTable = async () => {
       $$
     `);
 
-    console.log('✅ Users table ready');
+    console.log(' Users table ready');
     return true;
   } catch (error) {
-    console.error('❌ Error creating users table:', error.message);
+    console.error(' Error creating users table:', error.message);
     throw error;
   }
 };

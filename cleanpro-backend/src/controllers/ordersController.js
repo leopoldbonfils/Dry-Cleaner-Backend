@@ -77,7 +77,7 @@ const createOrder = async (req, res) => {
   try {
     const orderData = req.body;
 
-    // ✅ Data arrives as snake_case from api.js interceptor
+    //  Data arrives as snake_case from api.js interceptor
     const dbData = {
       user_id: req.user.id,
       client_name: orderData.client_name,
@@ -90,7 +90,7 @@ const createOrder = async (req, res) => {
       order_code: generateOrderCode()
     };
 
-    // ✅ Validate
+    //  Validate
     const validation = validateOrderData({
       clientName: dbData.client_name,
       clientPhone: dbData.client_phone,
@@ -111,7 +111,7 @@ const createOrder = async (req, res) => {
     // Create order
     const newOrder = await Order.create(dbData);
 
-    // ✅ Send order confirmation email to client
+    //  Send order confirmation email to client
     if (dbData.client_email) {
       try {
         console.log('📧 Sending order confirmation email...');
@@ -143,7 +143,7 @@ const createOrder = async (req, res) => {
             businessName: owner.business_name || 'Dry Clean'
           }
         );
-        console.log('✅ Order confirmation email sent to:', dbData.client_email);
+        console.log(' Order confirmation email sent to:', dbData.client_email);
       } catch (emailError) {
         console.warn('⚠️ Failed to send order confirmation email:', emailError.message);
         // Don't fail the order creation if email fails
@@ -182,7 +182,7 @@ const updateOrder = async (req, res) => {
       });
     }
 
-    // ✅ Data already arrives as snake_case from api.js
+    //  Data already arrives as snake_case from api.js
     const dbUpdates = {};
     if (updates.status) dbUpdates.status = updates.status;
     if (updates.payment_method) dbUpdates.payment_method = updates.payment_method;
@@ -200,7 +200,7 @@ const updateOrder = async (req, res) => {
 
     const updatedOrder = await Order.update(id, dbUpdates);
 
-    // ✅ Send email notification if status changed to "Ready"
+    //  Send email notification if status changed to "Ready"
     if (updates.status === 'Ready' && currentOrder.status !== 'Ready' && updatedOrder.client_email) {
       try {
         console.log('📧 Sending order ready notification...');
@@ -230,9 +230,9 @@ const updateOrder = async (req, res) => {
             businessName: owner.business_name || 'Dry Clean'
           }
         );
-        console.log('✅ Order ready email sent to:', updatedOrder.client_email);
+        console.log(' Order ready email sent to:', updatedOrder.client_email);
       } catch (emailError) {
-        console.warn('⚠️ Failed to send order ready email:', emailError.message);
+        console.warn(' Failed to send order ready email:', emailError.message);
         // Don't fail the update if email fails
       }
     }
